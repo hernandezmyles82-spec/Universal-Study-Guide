@@ -34,6 +34,7 @@ Both versions are built from the same code (`python3 tools/build-artifact.py` ma
   - ⏳ **Put in order**: timelines and step-by-step processes
 - **Live counter** (claude.ai version): how many students have joined, and how many this week, updating live.
 - **Help and Terms**: a Help tab explains every feature step by step; Terms of use say the site's code, design and content may not be copied.
+- **Share links** (public website): share a set of notes, with its cards and study guide, as a link anyone can open and add to their own notes. The notes travel inside the link; nothing is uploaded.
 - **Shared library** (claude.ai version): share a set of notes, with its study cards and AI study guide, for everyone using the site. Browse and search shared guides, add any of them to your own notes, and send a class a link straight to one. Each person can only change their own; the site's owner can remove any guide.
 - **Upload PDF and Word files**: notes can come from a PDF, a Word (.docx) file, or a .txt/.md file, read right in the browser (nothing is uploaded anywhere).
 - **AI study guide from your notes**: on any note, AI writes a full guide (overview, key ideas, a concept map, worked examples, common mistakes, timelines, a self-check) using only what's in the notes.
@@ -109,6 +110,7 @@ js/guides.js        study guide format (parser)
 js/file-text.js     reads PDF and Word files into notes
 js/guides-*.js      the study guide for every built-in topic, one file per subject
 js/modes.js         study-mode logic: flashcards, learn, matching, true/false, tests, put in order, badges
+js/share-links.js   share links for the public website
 js/shared-library.js  the shared library (claude.ai version)
 js/community.js     live "students have joined" counter (claude.ai version)
 js/help.js          Help (how to use, About) and Terms of use pages

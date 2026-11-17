@@ -59,7 +59,7 @@
       L.state = 'ok'; rerender();
     }, () => { clearTimeout(timer); L.state = 'error'; rerender(); });
   }
-  function rerender() { if (/^#(library|share|shared)\b/.test(location.hash)) ui.route(); }
+  function rerender() { if (/^#(library|share|shared|get)\b/.test(location.hash)) ui.route(); }
   async function body(meta) {
     if (L.bodies[meta.id]) return L.bodies[meta.id];
     const snap = await L.db.doc('library/' + meta.uid + '/guides/' + meta.id).get();
@@ -90,8 +90,66 @@
       <span class="small">${ui.plural(m.cards, 'card')}${m.hasGuide ? ' · study guide' : ''}${m.checks ? ' · ' + ui.plural(m.checks, 'question') : ''}</span>
       <span class="small muted">Shared by ${esc(m.by)}${mine(m) ? ' (you)' : ''}</span></span></a>`;
   }
+  /* ---------- public website: share links (js/share-links.js) ---------- */
+  const SL = () => root.MSG.ShareLinks;
+  function notesToShare(title, intro) {
+    const notes = Store.current().notes;
+    return `<div class="card stack"><h2>${title}</h2><p class="small">${intro}</p>
+      ${notes.length ? `<ul class="list">${notes.map((n) => `<li><div><b>${esc(n.title)}</b> <span class="muted small">${ui.plural(Store.cardsForNote(n.id).length, 'card')}${n.guide ? ' · study guide' : ''}</span></div><a class="btn small primary" href="#share--${n.id}">🔗 Get share link</a></li>`).join('')}</ul>` : '<p class="muted">You don\'t have any notes yet. <a href="#notes-new">Add notes</a> first.</p>'}</div>`;
+  }
+  function linksLibraryView() {
+    return `<div class="page-head"><div><h1>Shared library</h1><p class="muted">Share your notes with anyone, and add notes others share with you.</p></div></div>
+      <div class="grid editor"><div class="stack">
+        ${notesToShare('Share my notes with a link', 'Pick a set of notes to get a link. Anyone who opens it can see your study cards and study guide, and add them to their own notes. Your notes stay in your browser; the link carries a copy.')}
+      </div><div class="stack">
+        <div class="card stack"><h2>Got a link?</h2><p class="small">Just open the link a classmate or teacher sent you. It opens here with a preview and an <b>Add to my notes</b> button.</p></div>
+        <div class="card stack"><h2>Browse everyone's guides</h2><p class="small">A library you can browse and search, with guides from students and teachers, is on the claude.ai version of this site.</p><a class="btn" href="${SITE_URL}#library" target="_blank" rel="noopener">Open the claude.ai library ↗</a></div>
+      </div></div>`;
+  }
+  const LK = { key: '', link: '', busy: false };
+  function shareLinkView(noteId) {
+    const n = Store.note(noteId);
+    if (!n) return ui.notFound();
+    if (!Store.cardsForNote(n.id).length) return `<div class="card empty"><p>These notes have no study cards to share yet.</p><a class="btn" href="#note--${n.id}">Back to the notes</a></div>`;
+    const withNotes = sessionGet('linkNotes') === '1';
+    const key = n.id + '|' + withNotes + '|' + n.updatedAt + '|' + (n.guideAt || 0) + '|' + Store.cardsForNote(n.id).length;
+    if (LK.key !== key && !LK.busy) {
+      LK.busy = true;
+      SL().encode(n, withNotes).then((p) => { LK.key = key; LK.link = SL().base() + '#get--' + p; LK.busy = false; rerender(); }, () => { LK.busy = false; LK.key = key; LK.link = ''; rerender(); });
+    }
+    const ready = LK.key === key;
+    return `<div class="page-head"><div><a href="#note--${n.id}" class="muted small">← ${esc(n.title)}</a><h1>Share with a link</h1><p class="muted">Anyone who opens this link can see and add a copy of these notes. Leave out anything personal.</p></div></div>
+      <div class="card stack narrow-wide">
+        <p class="small">The link includes <b>${ui.plural(Store.cardsForNote(n.id).length, 'study card')}</b>${n.guide ? ' and your <b>study guide</b>' : ''}${withNotes ? ', and your <b>notes text</b>' : ''}.</p>
+        <label class="check"><input type="checkbox" data-action="link-notes" ${withNotes ? 'checked' : ''}> Also include my notes text</label>
+        ${!ready ? '<p class="muted">Making your link…</p>' : LK.link ? `<textarea id="shareLink" class="share-link" rows="3" readonly aria-label="Share link">${esc(LK.link)}</textarea>
+          <div class="row"><button class="btn primary" type="button" data-action="link-copy">Copy link</button><a class="btn" href="${esc(LK.link)}" target="_blank" rel="noopener">Test it ↗</a></div>
+          ${LK.link.length > SL().LONG_LINK ? `<p class="small feedback bad">This link is long (${LK.link.length.toLocaleString()} characters). It works in browsers and email, but some chat apps cut long links short. ${withNotes ? 'Leaving out the notes text makes it shorter.' : 'Sharing a smaller set of notes makes it shorter.'}</p>` : ''}
+          <p class="small muted">Send it by text, email, Google Classroom or a class chat.</p>` : '<p class="feedback bad small">The link couldn\'t be made. Try again.</p>'}
+      </div>`;
+  }
+  const GOT = {};
+  function getView(payload) {
+    const p = String(payload || '');
+    if (!GOT[p]) { GOT[p] = { state: 'loading' }; SL().decode(p).then((b) => { GOT[p] = { state: 'ok', b }; rerender(); }, () => { GOT[p] = { state: 'bad' }; rerender(); }); }
+    const g = GOT[p];
+    if (g.state === 'loading') return '<div class="card empty"><p>Opening the shared notes…</p></div>';
+    if (g.state === 'bad') return '<div class="card empty"><p>This share link isn\'t complete or can\'t be read.</p><p class="muted">Ask for the link again. Some apps cut long links short, so try sending it by email.</p><a class="btn" href="#dashboard">Go home</a></div>';
+    const b = g.b;
+    const guide = b.guide ? Guides.parseOne('link', b.guide) : null;
+    const me = Store.current();
+    const add = me ? '<button class="btn primary" data-action="link-add">+ Add to my notes</button>'
+      : `<form class="start-form" data-form="create-profile" data-next="#get--${esc(p)}"><input name="name" required maxlength="40" placeholder="Your first name or nickname" aria-label="Your name"><button class="btn primary" type="submit">Start studying</button></form><p class="small muted">Make your profile to add these notes and study them.</p>`;
+    return `<div class="topic-hero"><div><p class="eyebrow">Shared with you</p><h1><span class="cat-icon">${guide ? '📘' : '🃏'}</span>${esc(b.title)}</h1>
+        <p class="muted">${ui.plural(b.cards.length, 'study card')}${guide ? ' · study guide' : ''}${b.notes ? ' · notes' : ''}</p>${add}</div></div>
+      ${guide && guide.sections.length ? root.MSG.Study.guideHtml(guide, { src: 'link', title: 'Study guide' }) : ''}
+      <div class="card"><h2>Study cards</h2><div class="card-list">${b.cards.slice(0, 30).map((c) => `<div class="card-row"><div class="cr-main"><div class="cr-front">${ui.fmt(c.front)}</div><div class="cr-back">${ui.fmt(c.back)}</div></div></div>`).join('')}</div>${b.cards.length > 30 ? `<p class="muted small">…and ${b.cards.length - 30} more.</p>` : ''}</div>
+      ${b.notes ? `<details class="card"><summary>Notes</summary><div class="notes-body">${ui.md(b.notes)}</div></details>` : ''}`;
+  }
+
   function libraryView() {
     connect();
+    if (L.state === 'off') return linksLibraryView();
     if (['off', 'signedout'].includes(L.state)) return offView('Shared library');
     const q = (sessionGet('libFilter') || '').toLowerCase();
     const subj = sessionGet('libSubject') || 'all';
@@ -108,6 +166,7 @@
   }
   function sharePickView() {
     connect();
+    if (L.state === 'off') return `<div class="page-head"><div><a href="#library" class="muted small">← Shared library</a><h1>Share my notes</h1></div></div>` + notesToShare('Pick notes to share', 'You\'ll get a link that anyone can open to add a copy of these notes.');
     if (['off', 'signedout'].includes(L.state)) return offView('Share to the library');
     const notes = Store.current().notes;
     return `<div class="page-head"><div><a href="#library" class="muted small">← Shared library</a><h1>Share to the library</h1><p class="muted">Pick a set of notes. Its study cards, and its study guide if it has one, are shared.</p></div></div>
@@ -116,6 +175,7 @@
   }
   function shareView(noteId) {
     connect();
+    if (L.state === 'off') return shareLinkView(noteId);
     if (['off', 'signedout'].includes(L.state)) return offView('Share to the library');
     const n = Store.note(noteId);
     if (!n) return ui.notFound();
@@ -211,9 +271,14 @@
     const m = L.index.find((x) => x.id === gid);
     const b = m && L.bodies[gid];
     if (!b || b.failed) return;
+    addBody(m.title, b);
+  }
+  /* Shared notes (from the library or a link) become the student's own notes: the cards (written as
+     "front :: back" lines, so editing the notes later keeps them) and the study guide. */
+  function addBody(title, b) {
     const content = b.notes || b.cards.map((c) => String(c.front).replace(/\s*\n\s*/g, ' ') + ' :: ' + String(c.back).replace(/\s*\n\s*/g, ' ')).join('\n');
-    const cards = b.notes ? root.MSG.parseNotes(b.notes, { title: m.title }) : b.cards;
-    const note = Store.addNote({ title: m.title, course: b.course, categoryId: '', content }, cards.length ? cards : b.cards);
+    const cards = b.notes ? root.MSG.parseNotes(b.notes, { title }) : b.cards;
+    const note = Store.addNote({ title, course: b.course, categoryId: '', content }, cards.length ? cards : b.cards);
     if (b.guide) Store.setNoteGuide(note.id, b.guide);
     ui.toast('Added to My Notes ✨');
     ui.go('#note--' + note.id);
@@ -222,11 +287,14 @@
   function init(helpers) {
     ui = helpers;
     return {
-      views: { library: libraryView, share: (id) => (id ? shareView(id) : sharePickView()), shared: sharedView },
+      views: { library: libraryView, share: (id) => (id ? shareView(id) : sharePickView()), shared: sharedView, get: getView },
       actions: {
         'lib-subject': (el) => { sessionSet('libSubject', el.dataset.subject); ui.route(); },
         'lib-remove': (el) => remove(el.dataset.id),
         'lib-add': (el) => addToMine(el.dataset.id),
+        'link-add': () => { const p = location.hash.replace(/^#get--/, ''); const g = GOT[p]; if (g && g.b) addBody(g.b.title, g.b); },
+        'link-notes': (el) => { sessionSet('linkNotes', el.checked ? '1' : '0'); ui.route(); },
+        'link-copy': () => { const t = document.getElementById('shareLink'); (navigator.clipboard ? navigator.clipboard.writeText(t.value) : Promise.reject()).then(() => ui.toast('Link copied! Send it to anyone.'), () => { t.select(); ui.toast('Press Ctrl+C (or ⌘C) to copy the link.'); }); },
         'lib-copy': (el) => { const t = el.dataset.link; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => ui.toast('Link copied. Send it to your class!'), () => ui.toast('Copy this link: ' + t)); }
       },
       forms: { 'lib-share': share }

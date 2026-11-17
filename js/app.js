@@ -397,7 +397,7 @@ Include every key vocabulary word, every formula, and at least 10 practice quest
       <div class="page-head">
         <div><a href="#notes" class="muted small">← My Notes</a><h1>${esc(n.title)}</h1>
         <p class="muted">${[n.course ? esc(n.course) : '', cat ? `<a href="#category--${cat.id}">${esc(cat.name)}</a>` : '', plural(cards.length, 'study card'), mastery(cards) + '% mastered'].filter(Boolean).join(' · ')}</p></div>
-        <div class="row tight"><button class="btn primary" data-action="quiz-note" data-id="${n.id}" ${cards.length ? '' : 'disabled'}>Quiz me on this</button><a class="btn" href="#note-edit--${n.id}">Edit</a>${window.MSG.Sync && window.MSG.Sync.inClaude && cards.length ? `<a class="btn" href="#share--${n.id}">📚 ${n.sharedId ? 'Shared' : 'Share'}</a>` : ''}<button class="btn danger" data-action="delete-note" data-id="${n.id}">Delete</button></div>
+        <div class="row tight"><button class="btn primary" data-action="quiz-note" data-id="${n.id}" ${cards.length ? '' : 'disabled'}>Quiz me on this</button><a class="btn" href="#note-edit--${n.id}">Edit</a>${cards.length ? (window.MSG.Sync && window.MSG.Sync.inClaude ? `<a class="btn" href="#share--${n.id}">📚 ${n.sharedId ? 'Shared' : 'Share'}</a>` : `<a class="btn" href="#share--${n.id}">🔗 Share</a>`) : ''}<button class="btn danger" data-action="delete-note" data-id="${n.id}">Delete</button></div>
       </div>
       ${cards.length ? window.MSG.Study.modesPanel('note_' + n.id) : ''}
       <div class="tabs"><button class="tab ${tab === 'cards' ? 'active' : ''}" data-action="note-tab" data-tab="cards">Study cards (${cards.length})</button><button class="tab ${tab === 'guide' ? 'active' : ''}" data-action="note-tab" data-tab="guide">${n.guide ? 'Study guide' : '✨ Study guide'}</button><button class="tab ${tab === 'notes' ? 'active' : ''}" data-action="note-tab" data-tab="notes">My notes</button></div>
@@ -810,17 +810,17 @@ service cloud.firestore {
   function route() {
     // Routes are plain "#name" or "#name--id" so they also work inside a claude.ai artifact.
     const hash = location.hash.replace(/^#\/?/, '');
-    const parts = hash.split('--');
-    let name = parts[0] || 'dashboard';
-    const arg = parts[1];
+    const cut = hash.indexOf('--'); // a share link's data may itself contain "--"
+    let name = (cut < 0 ? hash : hash.slice(0, cut)) || 'dashboard';
+    const arg = cut < 0 ? undefined : hash.slice(cut + 2);
     const A = window.MSG.Accounts;
     if (window.MSG.Sync && window.MSG.Sync.loading) name = 'auth'; // claude.ai: shows "Loading…" until we know whose notes to load
     else if (A && A.enabled && (!A.ready || !A.user || A.error)) name = 'auth';
     else if (A && A.enabled && !A.loaded) name = 'auth'; // shows "Loading…" while the account's notes arrive
-    else if (!Store.current() && !['welcome', 'setup', 'help', 'terms'].includes(name)) name = 'welcome';
+    else if (!Store.current() && !['welcome', 'setup', 'help', 'terms', 'get'].includes(name)) name = 'welcome';
     const view = views[name] || notFound;
     $app.innerHTML = view(arg);
-    document.querySelectorAll('[data-nav]').forEach((a) => a.classList.toggle('active', a.dataset.nav === name || (name.startsWith('note') && a.dataset.nav === 'notes') || ((name === 'category' || name === 'course') && a.dataset.nav === 'categories') || (['share', 'shared'].includes(name) && a.dataset.nav === 'library') || (name === 'terms' && a.dataset.nav === 'help') || (['mistakes', 'progress'].includes(name) && a.dataset.nav === 'dashboard')));
+    document.querySelectorAll('[data-nav]').forEach((a) => a.classList.toggle('active', a.dataset.nav === name || (name.startsWith('note') && a.dataset.nav === 'notes') || ((name === 'category' || name === 'course') && a.dataset.nav === 'categories') || (['share', 'shared', 'get'].includes(name) && a.dataset.nav === 'library') || (name === 'terms' && a.dataset.nav === 'help') || (['mistakes', 'progress'].includes(name) && a.dataset.nav === 'dashboard')));
     const p = Store.current();
     document.getElementById('nav').style.visibility = p ? 'visible' : 'hidden';
     const chip = document.getElementById('profileChip');
@@ -972,7 +972,7 @@ service cloud.firestore {
     login: (f) => authSubmit(f, () => window.MSG.Accounts.logIn(f.email.value.trim(), f.password.value)),
     signup: (f) => authSubmit(f, () => window.MSG.Accounts.signUp(f.name.value.trim(), f.email.value.trim(), f.password.value), 'Account created. Welcome!'),
     reset: (f) => authSubmit(f, () => window.MSG.Accounts.resetPassword(f.email.value.trim()), 'Reset link sent. Check your email (and your spam folder).'),
-    'create-profile': (f) => { Store.createProfile(f.name.value); toast('Welcome, ' + Store.current().name + '!'); go('#dashboard'); },
+    'create-profile': (f) => { Store.createProfile(f.name.value); toast('Welcome, ' + Store.current().name + '!'); go(/^#get--[A-Za-z0-9_-]+$/.test(f.dataset.next || '') ? f.dataset.next : '#dashboard'); },
     'save-note': async (f) => {
       const aiOn = (f.querySelector('input[name=aiMode]:checked') || {}).value === 'on';
       if (aiOn && f.content.value.trim() && f.content.value !== AI.appliedText) {
