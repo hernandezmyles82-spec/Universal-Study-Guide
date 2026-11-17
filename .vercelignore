@@ -1,0 +1,8 @@
+# Only the website itself is published; tests, tools and developer notes stay in the repository.
+tests
+tools
+DEVELOPMENT.md
+CLAUDE.md
+FIREBASE-SETUP.md
+firestore.rules
+.github
