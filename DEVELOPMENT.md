@@ -162,6 +162,16 @@ Fonts are Inter (text) and Bricolage Grotesque (headings), vendored in `vendor/f
 
 > ⚠️ **Watch out:** Every color must be a token defined on bare `:root` first; never put a literal color in a component rule, or it breaks in dark mode.
 
+### Hosting (Vercel)
+
+The public website is hosted on **Vercel** (project `universal-study-guide`, connected to this repository's `main` branch: every merge deploys to production; every pushed branch gets a preview). There is no build step; Vercel serves the files as they are.
+
+- `vercel.json` adds security headers the page can't set itself: `frame-ancestors 'none'` and `X-Frame-Options: DENY` (no embedding in other sites), `nosniff`, a referrer policy, a permissions policy and HSTS. They add to the Content-Security-Policy in `index.html`; both apply.
+- `.vercelignore` keeps tests, tools and developer notes out of the published site.
+- `js/analytics.js` loads Vercel Web Analytics (no cookies) only on `universalstudyguide.com` and `*.vercel.app`; it never runs on GitHub Pages, locally, in tests or inside claude.ai, and the claude.ai build leaves it out.
+
+> ⚠️ **Watch out:** Analytics requests go to `/_vercel/insights/…` on the site's own address, which is why the security policy (`connect-src 'self'`) allows them. Don't move them to another host without adding it to the policy.
+
 ### Security
 
 `index.html` sets a Content-Security-Policy: scripts only from the site itself, no inline scripts or `on…=` attributes, no plugins, and network connections only to the site and Firebase. Text from notes, names and backups is always escaped (`U.esc`), and `Store.importProfile` rebuilds every field of a backup.

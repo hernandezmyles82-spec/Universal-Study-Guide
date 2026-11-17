@@ -52,6 +52,8 @@ def main(out):
     for p in re.findall(r'<script (?:defer )?src="([^"]+)"', body):
         if p.startswith('vendor/katex'):
             continue
+        if p == 'js/analytics.js':  # Vercel Web Analytics is for the public website only
+            continue
         if p == 'js/firebase-config.js':
             parts.append(script(p, 'window.MSG_FIREBASE_CONFIG = null; // claude.ai version: accounts come from claude.ai'))
             continue

@@ -9,11 +9,11 @@ A free, not-for-profit student project (no ads, data never sold): a website that
   privately to that account: nobody else, including the page's owner, can see them, and they follow the
   person to any device. To share it, open the link → **Share** → give people **Contributor** access
   (Viewers can use it, but their notes stay in their own browser).
-- **Public website (GitHub Pages):** https://www.universalstudyguide.com/
+- **Public website (hosted on Vercel):** https://www.universalstudyguide.com/
   No sign-in; notes are saved in each visitor's browser. Optional email/password accounts can be
   turned on with Firebase (see [FIREBASE-SETUP.md](FIREBASE-SETUP.md)).
 
-Both versions are built from the same code (`python3 tools/build-artifact.py` makes the claude.ai page).
+The public website deploys from `main` on Vercel; see DEVELOPMENT.md → Hosting. Both versions are built from the same code (`python3 tools/build-artifact.py` makes the claude.ai page).
 
 ## Features
 
