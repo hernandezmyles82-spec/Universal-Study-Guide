@@ -645,3 +645,7 @@ mark, .hl { background: linear-gradient(transparent 52%, var(--hl-mark) 52%, var
 .footer-links { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
 .footer-links a { color: var(--muted); }
 @media (max-width: 900px) { .help-toc { position: static; order: -1; } }
+
+/* share links */
+.share-link { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .8rem; word-break: break-all; }
+.narrow-wide { max-width: 720px; }

@@ -30,6 +30,7 @@ global `window.MSG` namespace (or `globalThis` under Node, so the tests can `req
 | `js/generators.js` | `MSG.Generators`: per-category random problem generators keyed by the same category ids (`generate`, `js/generators.js:458`) |
 | `js/quiz.js` | `MSG.Quiz`: builds questions from cards, categories and exams; checks answers (`js/quiz.js:177`) |
 | `js/file-text.js` | `MSG.FileText`: reads uploaded PDF (pdf.js) and Word .docx (mammoth) files into notes in the browser. Loads the libraries only when needed (`loadVendor`) |
+| `js/share-links.js` | `MSG.ShareLinks`: share links for the public website. A set of notes (cards, study guide, optionally the notes text) is packed into the link itself, `#get--<payload>` (`encode`/`decode`; nothing is uploaded) |
 | `js/shared-library.js` | `MSG.SharedLibrary`: the shared library on the claude.ai version (`#library`, `#share--<noteId>`, `#shared--<guideId>`). `init(helpers)` returns views, actions and forms that `js/app.js` merges |
 | `js/community.js` | `MSG.Community`: the live "students have joined" counter (claude.ai only). Each account is recorded once at `visitors/<id>` = `{ joined }`; the count is the size of that collection, kept live with `onSnapshot` and painted into `[data-live-count]` elements |
 | `js/help.js` | `MSG.Help`: the Help page (`#help`: how to use the site, and About) and Terms of use (`#terms`); both open without a profile |
@@ -141,7 +142,9 @@ Students and teachers share a set of notes (its cards, its AI study guide, and o
 
 > ⚠️ **Watch out:** Everything in the library was written by someone else. `cleanMeta` and `cleanBody` check every field (ids must be 6–40 lowercase letters or digits, text is capped, numbers are numbers) and everything is shown through `fmt`/`md`. Never insert library data as HTML or build a database path from an unchecked id.
 
-> ⚠️ **Watch out:** On the public website there is no shared database (Firebase is off), so `#library` explains that the library lives on the claude.ai version and links to it.
+> ⚠️ **Watch out:** On the public website there is no shared database (Firebase is off), so the Library tab offers **share links** instead (`js/share-links.js`) and links to the claude.ai library for browsing. A link's payload is `z` + base64url(deflate-raw(JSON)) (or `u` + base64url(JSON) where the browser can't compress); `decode` caps the link (2 MB) and the unpacked size (3 MB, against zip bombs) and cleans every field with `SharedLibrary.cleanBody`. Opening a link works without a profile (the `get` route), and making a profile from that page returns to it.
+
+> ⚠️ **Watch out:** `route()` splits the hash at the **first** `--` only, because a share link's data can itself contain `--`.
 
 ### Counter, Help, Terms
 
